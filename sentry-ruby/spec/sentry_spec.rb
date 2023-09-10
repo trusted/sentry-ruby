@@ -971,29 +971,14 @@ RSpec.describe Sentry do
         expect(described_class.initialized?).to eq(false)
       end
 
-      it "removes main hub" do
-        expect(described_class.get_main_hub).to be_a(Sentry::Hub)
-        described_class.close
-        expect(described_class.get_main_hub).to eq(nil)
-      end
-
-      it "removes thread local" do
-        expect(Thread.current.thread_variable_get(described_class::THREAD_LOCAL)).to be_a(Sentry::Hub)
-        described_class.close
-        expect(Thread.current.thread_variable_get(described_class::THREAD_LOCAL)).to eq(nil)
-
-      end
-
       it "calls background worker shutdown" do
         expect(described_class.background_worker).to receive(:shutdown)
         described_class.close
-        expect(described_class.background_worker).to eq(nil)
       end
 
       it "kills session flusher" do
         expect(described_class.session_flusher).to receive(:kill)
         described_class.close
-        expect(described_class.session_flusher).to eq(nil)
       end
 
       it "disables Tracepoint" do

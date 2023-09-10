@@ -226,6 +226,8 @@ module Sentry
         exception_locals_tp.enable
       end
 
+      @initialized = true
+
       at_exit { close }
     end
 
@@ -234,29 +236,25 @@ module Sentry
     #
     # @return [void]
     def close
-      if @background_worker
-        @background_worker.shutdown
-        @background_worker = nil
-      end
-
-      if @session_flusher
-        @session_flusher.kill
-        @session_flusher = nil
-      end
+      @background_worker&.shutdown
+      @session_flusher&.kill
 
       if configuration&.include_local_variables
         exception_locals_tp.disable
       end
 
-      @main_hub = nil
-      Thread.current.thread_variable_set(THREAD_LOCAL, nil)
+      @initialized = false
     end
 
     # Returns true if the SDK is initialized.
     #
     # @return [Boolean]
     def initialized?
-      !!get_main_hub
+      if @initialized.nil?
+        @initialized = false
+      end
+
+      @initialized
     end
 
     # Returns an uri for security policy reporting that's generated from the given DSN

@@ -3,7 +3,7 @@ require "spec_helper"
 RSpec.describe "with uninitialized SDK" do
   before do
     # completely nuke any initialized hubs
-    Sentry.instance_variable_set(:@main_hub, nil)
+    Sentry.instance_variable_set(:@initialized, nil)
     expect(Sentry.initialized?).to eq(false)
   end
 
@@ -41,4 +41,3 @@ RSpec.describe "with uninitialized SDK" do
     expect(result).to eq("foo")
   end
 end
-
