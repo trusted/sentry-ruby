@@ -9,12 +9,12 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 2.7
+        ruby-version: 3.4
     - name: Capture sdk name
       uses: actions-ecosystem/action-regex-match@v2
       id: regex-match
@@ -27,7 +27,7 @@ jobs:
       working-directory: ${{env.sdk-directory}}
       run: make build
     - name: Archive Artifacts
-      uses: actions/upload-artifact@v3.1.1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ github.sha }}
         path: ${{env.sdk-directory}}/*.gem

@@ -1,4 +1,6 @@
-require 'sentry/sidekiq/context_filter'
+# frozen_string_literal: true
+
+require "sentry/sidekiq/context_filter"
 
 module Sentry
   module Sidekiq
@@ -27,6 +29,19 @@ module Sentry
           if retry_count.nil? || retry_count < retry_limit(context, sidekiq_config) - 1
             return
           end
+        end
+
+        # Check if the retry count is below the attempt_threshold
+        attempt_threshold = context.dig(:job, "attempt_threshold")
+        if attempt_threshold && retryable?(context)
+          attempt_threshold = attempt_threshold.to_i
+          retry_count = context.dig(:job, "retry_count")
+          # attempt 1 - retry_count is nil
+          # attempt 2 - this is your first retry so retry_count is 0
+          # attempt 3 - you have retried once, retry_count is 1
+          attempt = retry_count.nil? ? 1 : retry_count.to_i + 2
+
+          return if attempt < attempt_threshold
         end
 
         Sentry::Sidekiq.capture_exception(

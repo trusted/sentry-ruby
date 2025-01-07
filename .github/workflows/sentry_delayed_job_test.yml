@@ -25,7 +25,12 @@ jobs:
         working-directory: sentry-delayed_job
     name: Ruby ${{ matrix.ruby_version }}, options - ${{ toJson(matrix.options) }}
     runs-on: ubuntu-latest
+    env:
+      RUBYOPT: ${{ matrix.options.rubyopt }}
+      BUNDLE_GEMFILE: ${{ github.workspace }}/sentry-delayed_job/Gemfile
+      BUNDLE_WITHOUT: rubocop
     strategy:
+      fail-fast: false
       matrix:
         ruby_version: ${{ fromJson(needs.ruby-versions.outputs.versions) }}
         include:
@@ -42,8 +47,9 @@ jobs:
           # LoadError:
           #  cannot load such file -- mutex_m
           - { ruby_version: "head" }
+          - { ruby_version: 'jruby-head' }
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Install sqlite
         run: |
           # See https://github.community/t5/GitHub-Actions/ubuntu-latest-Apt-repository-list-issues/td-p/41122/page/2
@@ -55,16 +61,13 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby_version }}
+          bundler-cache: true
 
       - name: Run specs
-        env:
-          RUBYOPT: ${{ matrix.options.rubyopt }}
-        run: |
-          bundle install --jobs 4 --retry 3
-          bundle exec rake
+        run: bundle exec rake
 
       - name: Upload Coverage
         if: ${{ matrix.options.codecov }}
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

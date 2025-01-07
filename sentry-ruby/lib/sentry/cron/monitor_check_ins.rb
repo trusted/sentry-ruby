@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sentry
   module Cron
     module MonitorCheckIns
@@ -12,12 +14,12 @@ module Sentry
                                                 :in_progress,
                                                 monitor_config: monitor_config)
 
-          start = Sentry.utc_now.to_i
+          start = Metrics::Timing.duration_start
 
           begin
             # need to do this on ruby <= 2.6 sadly
             ret = method(:perform).super_method.arity == 0 ? super() : super
-            duration = Sentry.utc_now.to_i - start
+            duration = Metrics::Timing.duration_end(start)
 
             Sentry.capture_check_in(slug,
                                     :ok,
@@ -27,7 +29,7 @@ module Sentry
 
             ret
           rescue Exception
-            duration = Sentry.utc_now.to_i - start
+            duration = Metrics::Timing.duration_end(start)
 
             Sentry.capture_check_in(slug,
                                     :error,
@@ -57,7 +59,7 @@ module Sentry
 
         def sentry_monitor_slug(name: self.name)
           @sentry_monitor_slug ||= begin
-            slug = name.gsub('::', '-').downcase
+            slug = name.gsub("::", "-").downcase
             slug[-MAX_SLUG_LENGTH..-1] || slug
           end
         end

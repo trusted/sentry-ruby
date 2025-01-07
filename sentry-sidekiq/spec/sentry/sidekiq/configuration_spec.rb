@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 
 RSpec.describe Sentry::Sidekiq::Configuration do
@@ -11,6 +13,12 @@ RSpec.describe Sentry::Sidekiq::Configuration do
     config = Sentry::Configuration.new
 
     expect(config.excluded_exceptions).to include("Sidekiq::JobRetry::Skip")
+  end
+
+  it "adds Sidekiq::JobRetry::Handled to the ignore list" do
+    config = Sentry::Configuration.new
+
+    expect(config.excluded_exceptions).to include("Sidekiq::JobRetry::Handled")
   end
 
   describe "#report_after_job_retries" do

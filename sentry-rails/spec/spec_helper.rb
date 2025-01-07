@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "bundler/setup"
 begin
   require "debug/prelude"
@@ -54,6 +56,8 @@ RSpec.configure do |config|
     ENV.delete('RAILS_ENV')
     ENV.delete('RACK_ENV')
   end
+
+  config.include ActiveJob::TestHelper, type: :job
 end
 
 def reload_send_event_job

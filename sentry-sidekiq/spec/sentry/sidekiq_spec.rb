@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 require 'sidekiq/manager'
 require 'sidekiq/api'
@@ -107,16 +109,43 @@ RSpec.describe Sentry::Sidekiq do
     expect(retry_set.count).to eq(1)
   end
 
+  def retry_last_failed_job
+    retry_set.first.add_to_queue
+    job = queue.first
+    work = Sidekiq::BasicFetch::UnitOfWork.new('queue:default', job.value)
+    process_work(processor, work)
+  end
+
+  context "with attempt_threshold" do
+    it "doesn't report the error until attempts equal the threshold" do
+      worker = Class.new(SadWorker)
+      worker.sidekiq_options attempt_threshold: 3
+
+      execute_worker(processor, worker)
+      expect(transport.events.count).to eq(0)
+
+      retry_last_failed_job
+      expect(transport.events.count).to eq(0)
+
+      retry_last_failed_job
+      expect(transport.events.count).to eq(1)
+    end
+
+    it "doesn't report the error when threshold is not reached" do
+      worker = Class.new(SadWorker)
+      worker.sidekiq_options attempt_threshold: 3
+
+      execute_worker(processor, worker)
+      expect(transport.events.count).to eq(0)
+
+      retry_last_failed_job
+      expect(transport.events.count).to eq(0)
+    end
+  end
+
   context "with config.report_after_job_retries = true" do
     before do
       Sentry.configuration.sidekiq.report_after_job_retries = true
-    end
-
-    def retry_last_failed_job
-      retry_set.first.add_to_queue
-      job = queue.first
-      work = Sidekiq::BasicFetch::UnitOfWork.new('queue:default', job.value)
-      process_work(processor, work)
     end
 
     context "when retry: is specified" do
@@ -221,7 +250,7 @@ RSpec.describe Sentry::Sidekiq do
       expect(transaction.contexts.dig(:trace, :trace_id)).to be_a(String)
       expect(transaction.contexts.dig(:trace, :span_id)).to be_a(String)
       expect(transaction.contexts.dig(:trace, :status)).to eq("ok")
-      expect(transaction.contexts.dig(:trace, :op)).to eq("queue.sidekiq")
+      expect(transaction.contexts.dig(:trace, :op)).to eq("queue.process")
     end
 
     it "records transaction with exception" do

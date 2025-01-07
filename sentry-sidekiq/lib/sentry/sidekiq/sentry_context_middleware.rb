@@ -1,14 +1,27 @@
 # frozen_string_literal: true
 
-require 'sentry/sidekiq/context_filter'
+require "sentry/sidekiq/context_filter"
 
 module Sentry
   module Sidekiq
+    module Helpers
+      def set_span_data(span, id:, queue:, latency: nil, retry_count: nil)
+        return unless span
+
+        span.set_data(Span::DataConventions::MESSAGING_MESSAGE_ID, id)
+        span.set_data(Span::DataConventions::MESSAGING_DESTINATION_NAME, queue)
+        span.set_data(Span::DataConventions::MESSAGING_MESSAGE_RECEIVE_LATENCY, latency) if latency
+        span.set_data(Span::DataConventions::MESSAGING_MESSAGE_RETRY_COUNT, retry_count) if retry_count
+      end
+    end
+
     class SentryContextServerMiddleware
-      OP_NAME = "queue.sidekiq"
+      include Sentry::Sidekiq::Helpers
+
+      OP_NAME = "queue.process"
       SPAN_ORIGIN = "auto.queue.sidekiq"
 
-      def call(_worker, job, queue)
+      def call(worker, job, queue)
         return yield unless Sentry.initialized?
 
         context_filter = Sentry::Sidekiq::ContextFilter.new(job)
@@ -23,7 +36,19 @@ module Sentry
         scope.set_contexts(sidekiq: job.merge("queue" => queue))
         scope.set_transaction_name(context_filter.transaction_name, source: :task)
         transaction = start_transaction(scope, job["trace_propagation_headers"])
-        scope.set_span(transaction) if transaction
+
+        if transaction
+          scope.set_span(transaction)
+
+          latency = ((Time.now.to_f - job["enqueued_at"]) * 1000).to_i if job["enqueued_at"]
+          set_span_data(
+            transaction,
+            id: job["jid"],
+            queue: queue,
+            latency: latency,
+            retry_count: job["retry_count"] || 0
+          )
+        end
 
         begin
           yield
@@ -63,13 +88,20 @@ module Sentry
     end
 
     class SentryContextClientMiddleware
-      def call(_worker_class, job, _queue, _redis_pool)
+      include Sentry::Sidekiq::Helpers
+
+      def call(worker_class, job, queue, _redis_pool)
         return yield unless Sentry.initialized?
 
         user = Sentry.get_current_scope.user
         job["sentry_user"] = user unless user.empty?
         job["trace_propagation_headers"] ||= Sentry.get_trace_propagation_headers
-        yield
+
+        Sentry.with_child_span(op: "queue.publish", description: worker_class.to_s) do |span|
+          set_span_data(span, id: job["jid"], queue: queue)
+
+          yield
+        end
       end
     end
   end

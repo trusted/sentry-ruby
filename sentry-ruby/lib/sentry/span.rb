@@ -44,6 +44,11 @@ module Sentry
       LINENO = "code.lineno"
       FUNCTION = "code.function"
       NAMESPACE = "code.namespace"
+
+      MESSAGING_MESSAGE_ID = "messaging.message.id"
+      MESSAGING_DESTINATION_NAME = "messaging.destination.name"
+      MESSAGING_MESSAGE_RECEIVE_LATENCY = "messaging.message.receive.latency"
+      MESSAGING_MESSAGE_RETRY_COUNT = "messaging.message.retry.count"
     end
 
     STATUS_MAP = {
@@ -160,6 +165,12 @@ module Sentry
       transaction.get_baggage&.serialize
     end
 
+    # Returns the Dynamic Sampling Context from the transaction baggage.
+    # @return [Hash, nil]
+    def get_dynamic_sampling_context
+      transaction.get_baggage&.dynamic_sampling_context
+    end
+
     # @return [Hash]
     def to_hash
       hash = {
@@ -192,7 +203,8 @@ module Sentry
         description: @description,
         op: @op,
         status: @status,
-        origin: @origin
+        origin: @origin,
+        data: @data
       }
     end
 

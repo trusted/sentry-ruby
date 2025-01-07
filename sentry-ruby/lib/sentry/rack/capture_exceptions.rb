@@ -50,11 +50,11 @@ module Sentry
       private
 
       def collect_exception(env)
-        env['rack.exception'] || env['sinatra.error']
+        env["rack.exception"] || env["sinatra.error"]
       end
 
       def transaction_op
-        "http.server".freeze
+        "http.server"
       end
 
       def capture_exception(exception, env)
